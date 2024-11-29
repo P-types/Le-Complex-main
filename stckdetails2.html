@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Data Viewer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+            color: #333;
+            background:linear-gradient(135deg, #3b0a45,#7b4397,#d3a0e8);
+            background-size: cover;
+            background-position: center;
+        }
+
+        h1 {
+        color: #c7c2c2;
+        text-align: center;
+        background: linear-gradient(to right, #52024e, #4e014e);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            margin: 0 0 15px;
+            color: #6c757d;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        label {
+            font-size: 1rem;
+            margin-bottom: 5px;
+            display: block;
+            color: #495057;
+        }
+
+        select,
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 1rem;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            outline: none;
+            transition: all 0.3s ease-in-out;
+            background-color:#db09db; 
+            color:rgb(8, 5, 5);
+            text-decoration:none;
+             cursor: pointer;
+           height: 50px;
+        }
+
+        select {
+            background: #f8f9fa;
+        }
+
+        select:hover {
+            border-color: #adb5bd;
+        }
+
+        button {
+            background-color:#db09db; 
+        color:rgb(8, 5, 5);
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size:16px;
+        text-decoration:none;
+        cursor: pointer;
+        transition: all 0.3s;
+        height: 50px;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #d3a0e8, #ff6bdf);
+        }
+
+        .loader {
+            display: none;
+            margin: 20px auto;
+            border: 4px solid rgba(0, 123, 255, 0.2);
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            color: #dc3545;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .stock-data {
+            font-size: 0.9rem;
+        }
+
+        .stock-data p {
+            margin: 5px 0;
+            line-height: 1.4;
+        }
+
+        .stock-data hr {
+            margin: 10px 0;
+            border: 0;
+            border-top: 1px solid #dee2e6;
+        }
+        #investhomebutton1{
+    position:absolute;
+    bottom: -900px;
+    left: 550px;
+    height: 50px;
+
+}
+    </style>
+</head>
+
+<body>
+    <h1>Market Data Viewer</h1>
+    <div class="container">
+        <div class="card">
+            <h2>Fetch Market Data</h2>
+            <label for="datatype">Select Data Type</label>
+            <select id="datatype">
+                <option value="intraday">Intraday</option>
+                <option value="historical">Historical Data</option>
+                <option value="eod">End Of Day Data</option>
+                <option value="splits">Splits Data</option>
+                <option value="dividends">Dividends Data</option>
+                <option value="tickers">Tickers</option>
+            </select>
+
+            <label for="symbol">Select Stock Symbol</label>
+            <select id="symbol">
+                <option value="AAPL">Apple (AAPL)</option>
+                <option value="TSLA">Tesla (TSLA)</option>
+                <option value="GOOG">Google (GOOG)</option>
+                <option value="AMZN">Amazon (AMZN)</option>
+                <option value="MSFT">Microsoft (MSFT)</option>
+                <option value="FB">Meta (FB)</option>
+                <option value="NFLX">Netflix (NFLX)</option>
+                <option value="NVDA">Nvidia (NVDA)</option>
+            </select>
+
+            <button onclick="fetchMarketData()">Fetch Data</button>
+            <button id="convertToINRButton" onclick="convertToINR()" style="display: none;">Convert to INR</button>
+            <button id="convertToUSDButton" onclick="convertToUSD()" style="display: none;">Convert to USD</button>
+        </div>
+
+        <div id="loader" class="loader"></div>
+        <div id="stockData" class="card stock-data"></div>
+    </div>
+
+    <script>
+        const apikey = 'e787aafb56f570d6098e160ba0d2d0b8';
+        const baseurl = 'https://api.marketstack.com/v1';
+        const conversionRate = 82;
+        let originalData = null;
+
+        async function fetchMarketData() {
+            const loader = document.getElementById('loader');
+            const stockData = document.getElementById('stockData');
+            loader.style.display = 'block';
+            stockData.innerHTML = ''; // Clear old data
+
+            const datatype = document.getElementById('datatype').value;
+            const symbol = document.getElementById('symbol').value;
+
+            const endpoints = {
+                intraday: '/intraday/latest',
+                historical: '/eod',
+                eod: '/eod/latest',
+                splits: '/splits',
+                dividends: '/dividends',
+                tickers: '/tickers'
+            };
+
+            const apiUrl = `${baseurl}${endpoints[datatype]}?access_key=${apikey}&symbols=${symbol}`;
+
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (data && data.data && data.data.length > 0) {
+                    originalData = JSON.parse(JSON.stringify(data));
+                    displayData(data, datatype);
+
+                    const showConvertButtons = datatype === 'historical' || datatype === 'eod';
+                    document.getElementById('convertToINRButton').style.display = showConvertButtons ? 'inline' : 'none';
+                    document.getElementById('convertToUSDButton').style.display = showConvertButtons ? 'inline' : 'none';
+                } else {
+                    displayError('No data available for the selected option.');
+                }
+            } catch (error) {
+                console.error('Error fetching market data:', error);
+                displayError('Error fetching data. Please try again later.');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function displayData(data, datatype) {
+            const stockData = document.getElementById('stockData');
+            stockData.innerHTML = ''; // Clear previous content
+
+            data.data.forEach(item => {
+                stockData.innerHTML += `
+                    <p><strong>Symbol:</strong> ${item.symbol}</p>
+                    <p><strong>Date:</strong> ${item.date}</p>
+                    ${item.open ? `<p><strong>Open:</strong> ${item.open}</p>` : ''}
+                    ${item.high ? `<p><strong>High:</strong> ${item.high}</p>` : ''}
+                    ${item.low ? `<p><strong>Low:</strong> ${item.low}</p>` : ''}
+                    ${item.close ? `<p><strong>Close:</strong> ${item.close}</p>` : ''}
+                    ${item.volume ? `<p><strong>Volume:</strong> ${item.volume}</p>` : ''}
+                    <hr>`;
+            });
+        }
+
+        function displayError(message) {
+            const stockData = document.getElementById('stockData');
+            stockData.innerHTML = `<p class="error">${message}</p>`;
+        }
+
+        function convertToINR() {
+            const data = JSON.parse(JSON.stringify(originalData));
+            data.data.forEach(item => {
+                if (item.open) item.open *= conversionRate;
+                if (item.high) item.high *= conversionRate;
+                if (item.low) item.low *= conversionRate;
+                if (item.close) item.close *= conversionRate;
+            });
+            displayData(data, 'historical');
+        }
+
+        function convertToUSD() {
+            displayData(originalData, 'historical');
+        }
+    </script>
+   <div id="investhomebutton1" class="card">
+    <button onclick="location.href='index.html'">
+        <i class="fa-solid fa-house"></i> 
+        Back to Home</button> 
+</div>
+</body>
+
+</html>
